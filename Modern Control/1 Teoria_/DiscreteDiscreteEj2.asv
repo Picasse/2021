@@ -1,0 +1,16 @@
+%DiscretoDiscreto
+ft=tf([3 0],[1 2])
+tm=1/8
+ftz=c2d(ft,tm)
+% step(ft)
+% hold on%Ver las respuestas
+% step(ftz)%Como si se parecen el tm está bien seleccionado
+AS=conv([1 -1],[1 -1]);
+AS=conv([AS],[1 -1]);
+AS=conv([AS],[1 -1]);%(1-z^-1)^4
+AS=conv([AS],[1 -0.7788])%(1-z^-1)^4*(1-0.7788z^-1)=z0 z-1 z-2 z-3 z-4 z-n
+
+
+
+
+
