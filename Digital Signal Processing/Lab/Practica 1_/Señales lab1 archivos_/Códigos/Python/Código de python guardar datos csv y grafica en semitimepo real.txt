@@ -1,0 +1,106 @@
+import serial
+import time
+import collections
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from matplotlib.lines import Line2D
+import csv
+import pandas
+import numpy as np
+from pylab import *
+
+
+import numpy as np
+from tkinter import *
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from threading import Thread
+
+# declarar varables
+ventana = Tk()
+ventana.title("Lab No. 1. Protocolo de comunicacion RS-232")
+ventana.geometry("340x400")
+baudRate = 9600
+Samples = 15
+sampleTime = 500
+numData = 3
+xmin = 0
+xmax = Samples
+ymin = [0, 0, 0]
+ymax = [4095, 5.5, 70]
+lines = []
+data = []
+# sl1=[]
+# sl2=[]
+# sl3=[]
+
+
+stm = serial.Serial('com3', baudrate=9600,parity=serial.PARITY_SPACE)
+
+
+
+
+def getSerialData(self,Samples,numData,stm, lines):
+    s=stm.readline().decode("ascii")
+    for i in range(3):
+        value  = float(stm.readline().strip())
+        data[i].append(value)
+        lines[i].set_data(range(Samples),data[i])
+        print(data)
+
+for i in range(3): #numdata
+    data.append(collections.deque([0] * Samples, maxlen=Samples))
+    lines.append(Line2D([], [], color='blue'))
+
+def s1():
+    fig = plt.figure(1)
+    ax1 = fig.add_subplot(1, 1, 1, xlim=(xmin, xmax), ylim=(ymin[0], ymax[0]))
+    ax1.title.set_text('DAC')
+    ax1.set_xlabel("Muestras")
+    ax1.set_ylabel("Resolución")
+    ax1.add_line(lines[0])
+    anim = animation.FuncAnimation(fig, getSerialData, fargs=(Samples, numData, stm, lines),
+                                   interval=sampleTime)
+    plt.show()
+
+def lf1():
+    muestras = 'periodo 0.2s.csv'
+    csv = open(muestras, 'w')
+    titulo = 'N muestras, Voltaje\n'
+    csv.write(titulo)
+    filas = 20
+    columnas = 2
+    data = []
+    datos = [[0 for columna in range(0, 600)] for fila in range(0, 1)]
+    v = 1
+    h = 0
+    m = stm.readline().decode('ascii')
+    for i in range(filas):
+        datos.append([0] * columnas)
+    for i in range(filas):
+        datos[i][1] = stm.readline().decode('ascii')
+    for i in range(filas):
+        datos[i][1] = stm.readline().decode('ascii')
+    print("iniciando la conversion")
+    for i in range(filas):
+        d0 = datos[i][1]
+        fil = str(v) + "," + str(d0)
+        csv.write(fil)
+        v = v + 1
+        print(v)
+    csv.close()
+
+
+
+
+botonS1 = Button(ventana, text="Grafica DAC 10 muestras por segundo", command=s1)
+botonS1.place(x=10, y=10)
+botonS1.config(width="45", height="7")
+
+boffl1 = Button(ventana, text="Guardar datos", background="green", command=lf1)
+boffl1.place(x=10, y=150)  # Boton sensor 1
+boffl1.config(width="45", height="7")
+
+
+ventana.configure(background="gray")
+ventana.mainloop()
+stm.close()  # cerrar puerto serial/ close serial port

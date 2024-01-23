@@ -1,0 +1,119 @@
+//12 bits adc trasmicion por serial 10 muestras por segundo 
+#include <stdio.h>
+#include "STM32F7xx.h"
+#include <math.h>
+
+char numeros[10]={'0','1','2','3','4','5','6','7','8','9'};
+char en[5]={0};
+char s= ' ',sa=0;
+int h=0,x=0;
+int resultado,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,ES,k;
+int dato_adc,dato_adc1,dato_adc2; 
+float T=2;
+float f;
+float c=0;
+int t=0;
+float fun=0;
+float pi = 3.141592654;
+float a=0;
+float v=0;
+//**
+void resul(){
+	
+	for(int i=0;i<5;i++){ 
+		s=en[i];//se recorre el vectoren la posicion donde se encuentre cada uno de los digitos del resultado, segurada en la variable s
+		UART4->TDR = s;//Envío de la variable s
+		while((UART4->ISR &= 0x80)==0); //Evalua en envio del dato
+	}
+}
+extern "C"{
+	
+	void ADC_IRQHandler(void){    //INTERRUPCION POR FINAL DE CONVERSION
+	
+	h=TIM2->CNT;
+		if (TIM2->CNT >=100)
+		{
+			
+  dato_adc2= ADC2->DR;	
+			
+  r4=dato_adc2 /1000;
+	r3=dato_adc2 -r4*1000;
+	r3=r3/100;
+	r2=dato_adc2 -r4*1000-r3*100;
+	r2=r2/10;
+	r1=dato_adc2 -r4*1000-r3*100-r2*10;
+	en[1]=numeros[r4];
+	en[2]=numeros[r3];
+	en[3]=numeros[r2];
+	en[4]=numeros[r1];
+	en[0]='\n';
+			
+			TIM2->EGR=1;
+		}
+		//SE HACE LECTURA DE DATO.
+
+	}	// FIN INTERRUPCION ADC			
+} // FIN EXTERN
+
+void conv_adc(){
+	ADC2->CR2 |= (1UL << 30);        //INICIA CONVERSION ( BIT SWSTART )
+	while ((ADC2->SR &= 0x2)==1); 
+	//ESPERA HASTA TERMINAR CONVERSION DE CANAL 1
+}
+
+int main(void){
+//**	
+	//CONFIGURACION CLOCK
+	RCC->AHB1ENR = 0xFFFF;    //PRENDER EL CLOCK 
+	RCC->APB1ENR =0X80001;//timer2
+	RCC->APB1ENR |= 0x20000000; //reloj del DAC
+
+	//CONFIGURACION ADC 
+	
+	//RCC->APB2ENR |= 0x400; //ENABLE CLOCK ADC3 ( BIT 10 )
+	RCC->APB2ENR |=0x700;
+
+	GPIOA->MODER |= 0x300; //PA4 como analogo
+	GPIOC->MODER |=0X3C;// PC1 Y PC2
+	
+	//GPIOF->MODER = 0xC0;	//PIN PF3 ANALOG 
+	GPIOF->MODER |=(3UL<<2*3);
+	
+	GPIOA -> MODER |=(2UL<<2*0);//TX1   PA0
+	GPIOC -> MODER |=(2UL<<2*11);//RX1  PC11
+	
+	ADC2->CR1 |= (1UL << 5);   	 //Activa la interrupcion EOCIE
+	ADC2->CR2 |= (1UL << 0);   	//The ADC is powered on by setting the ADON bit in the ADC_CR2 register
+	
+	ADC3->CR1 |= (1UL << 5);   	 //Activa la interrupcion EOCIE
+	ADC3->CR2 |= (1UL << 0);   	//The ADC is powered on by setting the ADON bit in the ADC_CR2 register
+	//ADC3->CR2 |= (1UL << 1);   	//ADC3->CR2 - Set Bit CONT in the ADC_CR2 register
+	
+	ADC3->CR2 |= (1UL << 10);   //Set to 1 the bit EOCS (The EOC bit is set in the ADC_SR) register:
+	ADC2->CR2 |= (1UL << 10);   //Set to 1 the bit EOCS (The EOC bit is set in the ADC_SR) register:
+  NVIC_EnableIRQ(ADC_IRQn);   //HABILITA INTERRUPCION DE LOS ADC
+	ADC3->SQR3 = 9;     			//DEFINE CANAL DE CONVERSION(PF3 - ADC3_IN9) CANAL 9
+  ADC2->SQR3 = 12; 
+
+	GPIOA->AFR[0] |=0X8;
+	GPIOC->AFR[1] |=0X8000;
+	DAC->CR |=0x1;          //encender canal 1 bit 0 ,(canal 2 bit 16)
+	DAC->DHR12R1 = 0;      //codigo en bits
+	
+	TIM2->CR1|=0x1;
+  TIM2->ARR|=1000000;
+	TIM2->PSC|=15999;
+	
+	
+	UART4->BRR = 0x683; 
+	UART4->CR1 |= 0x2C; //Habilito RX y TX, habilito Interrupcion por RX
+	                    //configuro a 8 bits de datos con CR2 pero no esta por que esta por defecto en 00
+	UART4->CR1 |= 0x01; //Habilito el uart con UE
+	UART4->BRR |=0X683;
+
+	while(true){
+	conv_adc();//FUNCION DE CONVERSION DE ANALOGO A DIGITAL
+	resul();
+	
+	}//cierra while
+}//cierra main
